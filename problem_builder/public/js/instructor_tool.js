@@ -364,7 +364,17 @@ function InstructorToolBlock(runtime, element) {
     $deleteButton.on('click', hideResults);
 
     $downloadButton.on('click', function() {
-        window.location.href = status.download_url;
+        function downloadLink(url, filename) {
+            var link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        var downloadReportUrl = runtime.handlerUrl(element, 'download_report');
+        downloadLink(downloadReportUrl, 'report.csv');
     });
 
     showSpinner();

@@ -23,7 +23,12 @@ Instructor Tool: An XBlock for instructors to export student answers from a cour
 All processing is done offline.
 """
 import json
+import urllib2
+import logging
+
 from django.core.paginator import Paginator
+from functools import partial
+from webob.response import Response
 from xblock.core import XBlock
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import Scope, String, Dict, List
@@ -31,8 +36,10 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
 loader = ResourceLoader(__name__)
+log = logging.getLogger(__name__)
 
 PAGE_SIZE = 15
+BLOCK_SIZE = 8 * 1024
 
 
 # Make '_' a no-op so we can scrape strings
@@ -345,6 +352,23 @@ class InstructorToolBlock(XBlock):
             async_result = export_data_task.AsyncResult(self.active_export_task_id)
             async_result.revoke()
             self._delete_export()
+
+    @XBlock.handler
+    def download_report(self, request, suffix=''):
+        try:
+            f = urllib2.urlopen(self.download_url_for_last_report)
+            app_iter = iter(partial(f.read, BLOCK_SIZE), '')
+            return Response(
+                app_iter=app_iter,
+                content_type='text/csv',
+                content_disposition="attachment; filename=report.csv")
+        except Exception as e:
+            warning_message = "could not download report: {}: error: {}".format(self.download_url_for_last_report, e)
+            log.warning(warning_message)
+            return Response(
+                warning_message,
+                status_code=500
+            )
 
     def _get_user_attr(self, attr):
         """Get an attribute of the current user."""
